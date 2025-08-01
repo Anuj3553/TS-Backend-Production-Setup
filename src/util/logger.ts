@@ -1,11 +1,13 @@
 import { createLogger, format, transports } from 'winston'
 import { ConsoleTransportInstance, FileTransportInstance } from 'winston/lib/winston/transports'
 import util from 'util'
+import 'winston-mongodb'
 import { EApplicationEnvironment } from '../constant/application'
 import config from '../config/config'
 import path from 'path'
 import * as sourceMapSupport from 'source-map-support'
 import { blue, green, red, yellow } from 'colorette'
+import { MongoDBTransportInstance } from 'winston-mongodb'
 
 // Linking Trace Support
 sourceMapSupport.install()
@@ -85,7 +87,7 @@ const fileLogFormat = format.printf((info) => {
     return JSON.stringify(logData, null, 4)
 })
 
-const FileSupport = (): Array<FileTransportInstance> => {
+const FileTransport = (): Array<FileTransportInstance> => {
     return [
         new transports.File({
             filename: path.join(__dirname, '../', '../', 'logs', `${config.ENV}.log`),
@@ -95,9 +97,24 @@ const FileSupport = (): Array<FileTransportInstance> => {
     ]
 }
 
+const MongodbTransport = (): Array<MongoDBTransportInstance> => {
+    return [
+        new transports.MongoDB({
+            level: 'info',
+            db: config.DATABASE_URL!,
+            metaKey: 'meta',
+            expireAfterSeconds: 60 * 60 * 24 * 30, // 30 days
+            options: {
+                useUnifiedTopology: true
+            },
+            collection: 'application-logs'
+        })
+    ]
+}
+
 export default createLogger({
     defaultMeta: {
         meta: {}
     },
-    transports: [...FileSupport(), ...consoleTransport()]
+    transports: [...FileTransport(), ...MongodbTransport(), ...consoleTransport()]
 })
